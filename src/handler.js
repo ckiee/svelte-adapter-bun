@@ -25,6 +25,7 @@ const host_header = env("HOST_HEADER", "host").toLowerCase();
 /** @param {boolean} assets */
 export default function (assets) {
   let handlers = [
+    restrictPageEntrypoints,
     assets && serve(path.join(__dirname, "/client"), true),
     assets && serve(path.join(__dirname, "/prerendered")),
     ssr,
@@ -73,6 +74,56 @@ export default function (assets) {
   };
 }
 
+async function restrictPageEntrypoints(req, next) {
+  const url = new URL(req.url)
+  let pathname = url.pathname;
+  if (pathname.indexOf("%") !== -1) {
+    try {
+      pathname = decodeURIComponent(pathname);
+    } catch (err) {
+      /* malform uri */
+    }
+  }
+
+  if (!pathname.startsWith(`/${manifest.appPath}/immutable/nodes/`))
+    return next();
+
+  // match something like: /_app/immutable/nodes/4.4zf_eCIQ.js
+  //                                  grab this: ^
+  const nodeIdx = parseInt(pathname.split("/").pop().split(".")[0], 10);
+  // HACK: private field access!
+  const route = manifest._.routes.find(route => route.page.leaf == nodeIdx);
+
+  // if (route?.id.startsWith("/writing") && !url.searchParams.has("secret")) {
+  //   return new Response(403, { status: 403 });
+  // }
+
+  if (route?.id.startsWith("/writing")) {
+    /** @type {ServerDataResponse} */
+    const fakeUrl = new URL(req.url)
+    fakeUrl.pathname = `${route.id}/__data.json`;
+    const fakeReq = new Request(fakeUrl, {
+      headers: req.headers
+    });
+
+    const dataJson = await server.respond(fakeReq, {
+      getClientAddress() { return "127.0.0.1"; },
+      platform: {
+        isBun() {
+          return true;
+        },
+      },
+    }).then(r => r.json());
+
+    console.log({dataJson})
+
+    if (dataJson.type == "redirect")
+      return new Response(403, { status: 403 });
+  }
+
+  return next();
+}
+
 function serve(path, client = false) {
   return (
     existsSync(path) &&
@@ -115,8 +166,7 @@ function ssr(request) {
 
   if (address_header && !request.headers.has(address_header)) {
     throw new Error(
-      `Address header was specified with ${
-        ENV_PREFIX + "ADDRESS_HEADER"
+      `Address header was specified with ${ENV_PREFIX + "ADDRESS_HEADER"
       }=${address_header} but is absent from request`,
     );
   }
@@ -135,8 +185,7 @@ function ssr(request) {
 
           if (xff_depth > addresses.length) {
             throw new Error(
-              `${ENV_PREFIX + "XFF_DEPTH"} is ${xff_depth}, but only found ${
-                addresses.length
+              `${ENV_PREFIX + "XFF_DEPTH"} is ${xff_depth}, but only found ${addresses.length
               } addresses`,
             );
           }
