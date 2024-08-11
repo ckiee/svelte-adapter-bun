@@ -6,6 +6,7 @@ import path from "path";
 import sirv from "./sirv";
 import { existsSync } from "fs";
 import installPolyfills from "./polyfills";
+import { get_option, load_page_nodes } from "./crimes"
 
 const __dirname = path.dirname(fileURLToPath(new URL(import.meta.url)));
 
@@ -94,11 +95,12 @@ async function restrictPageEntrypoints(req, next) {
   // HACK: private field access!
   const route = manifest._.routes.find(route => route.page.leaf == nodeIdx);
 
-  // if (route?.id.startsWith("/writing") && !url.searchParams.has("secret")) {
-  //   return new Response(403, { status: 403 });
-  // }
+  if (!route) return next();
 
-  if (route?.id.startsWith("/writing")) {
+  const nodes = await load_page_nodes(route.page, manifest);
+
+  // If it's possible this request can be denied, go check that..
+  if (nodes.some(node => node.server)) {
     /** @type {ServerDataResponse} */
     const fakeUrl = new URL(req.url)
     fakeUrl.pathname = `${route.id}/__data.json`;
@@ -114,8 +116,6 @@ async function restrictPageEntrypoints(req, next) {
         },
       },
     }).then(r => r.json());
-
-    console.log({dataJson})
 
     if (dataJson.type == "redirect")
       return new Response(403, { status: 403 });
