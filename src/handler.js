@@ -76,7 +76,9 @@ export default function (assets) {
 }
 
 async function restrictPageEntrypoints(req, next) {
-  const url = new URL(req.url)
+  // clone and remove trailing slash
+  const url = new URL(req.url.toString().replace(/\/$/, ""));
+
   let pathname = url.pathname;
   if (pathname.indexOf("%") !== -1) {
     try {
