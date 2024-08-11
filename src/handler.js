@@ -136,7 +136,8 @@ function serve(path, client = false) {
       setHeaders:
         client &&
         ((headers, pathname) => {
-          if (pathname.startsWith(`/${manifest.appDir}/immutable/`)) {
+          if (pathname.startsWith(`/${manifest.appDir}/immutable/`) &&
+              !pathname.startsWith(`/${manifest.appDir}/immutable/nodes`)) {
             headers.set("cache-control", "public,max-age=31536000,immutable");
           }
           return headers;
