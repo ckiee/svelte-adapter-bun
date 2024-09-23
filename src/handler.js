@@ -95,7 +95,7 @@ async function restrictPageEntrypoints(req, next) {
   //                                  grab this: ^
   const nodeIdx = parseInt(pathname.split("/").pop().split(".")[0], 10);
   // HACK: private field access!
-  const route = manifest._.routes.find(route => route.page.leaf == nodeIdx);
+  const route = manifest._.routes.find(route => route?.page?.leaf == nodeIdx);
 
   if (!route) return next();
 
