@@ -35,6 +35,15 @@ export default function (opts = {}) {
 
       builder.log.minor("Copying assets");
       builder.writeClient(`${out}/client${builder.config.kit.paths.base}`);
+
+      // Expose the client's vite manifest to the server for reflection shenanigans.
+      //
+      // Depends-on: https://github.com/sveltejs/kit/pull/10782
+      builder.copy(
+        `${builder.config.kit.outDir}/output/client/.vite/manifest.json`,
+        `${out}/server/.vite/client-manifest.json`
+      );
+
       builder.writePrerendered(`${out}/prerendered${builder.config.kit.paths.base}`);
 
       if (precompress) {
