@@ -111,17 +111,23 @@ async function restrictPageEntrypoints(req, next) {
       headers: req.headers
     });
 
-    const dataJson = await server.respond(fakeReq, {
+    const resp = await server.respond(fakeReq, {
       getClientAddress() { return "127.0.0.1"; },
       platform: {
         isBun() {
           return true;
         },
       },
-    }).then(r => r.json());
+    });
 
-    if (dataJson.type == "redirect")
-      return new Response(403, { status: 403 });
+    const dataJson = await resp.json();
+
+    // console.log({ st: resp.status, ok: resp.ok, dataJson, djn: dataJson?.nodes })
+
+    if (dataJson.type == "redirect"
+        || (dataJson.type == "data" && dataJson.nodes.find(n => n?.type == "error" && n?.status != 404))
+        || !resp.ok)
+      return new Response("not today gumbo!", { status: 403 });
   }
 
   return next();
